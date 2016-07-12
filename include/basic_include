@@ -1,0 +1,172 @@
+#include <iostream>
+#include <fstream>
+
+#include <GLEW/glew.h>
+#include <GLFW/glfw3.h>
+#include <SOIL.h>
+
+#define shader_path "E:/Pranay/BotX games/openGL/projects/ImageProcessor/shaders/"
+#define input_path "E:/Pranay/BotX games/openGL/projects/ImageProcessor/input/"
+#define output_path "E:/Pranay/BotX games/openGL/projects/ImageProcessor/output/"
+
+using namespace std;
+
+int WIDTH, HEIGHT;
+
+GLFWwindow *_window;
+
+int basic_initializations(int width, int height, string name) {
+
+    if (!glfwInit()) return -1000;
+
+    WIDTH = width;
+    HEIGHT = height;
+
+    _window = glfwCreateWindow(WIDTH, HEIGHT, name.c_str(), NULL, NULL);
+
+    if (!_window) return -1001;
+
+    glfwMakeContextCurrent(_window);
+
+    if (glewInit() != GLEW_OK) return -1002;
+    glClearColor(0.1f, 0.1f, 0.1f, 1);
+
+}
+
+struct Color{
+    float r, g, b, a;
+    Color(){};
+    Color(float c, float A){
+        r = b = g = c;
+        a = A;
+    }
+    Color(float R, float G, float B, float A){
+        r = R;
+        g = G;
+        b = B;
+        a = A;
+    }
+    Color set(float R, float G, float B, float A){
+        r = R;
+        g = G;
+        b = B;
+        a = A;
+        return *this;
+    }
+};
+
+struct Shader {
+    unsigned int ID;
+    string code;
+    bool vertex;
+
+    Shader() { }
+
+    Shader(string filename, bool v) {
+
+        vertex = v;
+
+        ID = glCreateShader(v ? GL_VERTEX_SHADER : GL_FRAGMENT_SHADER);
+
+        cout << endl << "reading " << filename << "..." << endl;
+        //<editor-fold desc="read from file">
+        ifstream file;
+        file.open(shader_path + filename + ".glsl", ios::in);
+        if (file.fail())
+            cerr << "loading fail: [" << filename << ".glsl]\n";
+        else if (!file.is_open())
+            cerr << "cannot open: [" << filename << ".glsl]\n";
+        else {
+            while (!file.eof()) {
+
+                char tmp[100];
+                file.getline(tmp, 500);
+                string line = ((string) tmp).append("\n");
+                code.append(line);
+
+            }
+            cout << "done!" << endl;
+        }
+        file.close();
+        //</editor-fold>
+
+        cout << endl << "compiling " << filename << "..." << endl;
+        //<editor-fold desc="compiling">
+        char const *cptr = code.c_str();
+        glShaderSource(ID, 1, &cptr, NULL);// specifying the shader source code
+        glCompileShader(ID);
+
+        int info;
+        glGetShaderiv(ID, GL_INFO_LOG_LENGTH, &info);
+        if (info > 0) {
+            char Message[1024];
+            glGetShaderInfoLog(ID, info, NULL, Message);
+            printf("%s\n", &Message);
+        } else {
+            cout << "done!" << endl;
+        }
+        //</editor-fold>
+
+    }
+};
+
+unsigned int loadShaders(string vFilename, string fFilename) {
+
+    Shader vs(vFilename, true);
+    Shader fs(fFilename, false);
+
+    // attaching to shaderprogram and linking the program
+    unsigned int programID = glCreateProgram();
+    glAttachShader(programID, vs.ID);
+    glAttachShader(programID, fs.ID);
+    glLinkProgram(programID);
+
+    // cleaning
+
+    glDetachShader(programID, vs.ID);
+    glDetachShader(programID, fs.ID);
+    glDeleteShader(vs.ID);
+    glDeleteShader(fs.ID);
+
+    return programID;
+
+}
+
+struct Texture{
+
+    GLuint texID;
+    int texUnit;
+    int width, height;
+    int channel;
+    unsigned char *imgData;
+
+    Texture (string path, int textureUnit, GLuint format){
+
+        texUnit = textureUnit;
+        imgData = SOIL_load_image(path.c_str(), &width, &height, &channel, SOIL_LOAD_RGB);
+
+        if(imgData == NULL)
+            cerr << "Image loading failed! " << path << endl;
+
+        glGenTextures(1, &texID);
+        bind();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, imgData);
+
+    }
+
+    void bind () {
+
+        glActiveTexture(GL_TEXTURE0 + texUnit);
+        glBindTexture(GL_TEXTURE_2D, texID);
+
+    }
+
+    void saveImage(const unsigned char *const data){
+        SOIL_save_image(output_path"result.bmp",SOIL_SAVE_TYPE_BMP, width, height, 3, data);
+    }
+
+};

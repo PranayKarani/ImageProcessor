@@ -1,0 +1,35 @@
+#include <iostream>
+
+using namespace std;
+
+struct Effect{
+
+    float value = 1.0f;
+    float rate = 0.25f;
+    Color color;
+};
+
+struct Brightness : public Effect{
+
+    Brightness() {
+
+        value = 1.0f;
+        rate = 0.25f;
+        color.set(1.0f, 1.0f, 1.0f, 1.0f);
+    }
+
+};
+
+struct Tint : public Effect{
+
+    Tint(){
+
+        value = 1.0f;
+        rate = 0.25f;
+        color.r = 1.0f;
+        color.g = 1.0f;
+        color.b = 1.0f;
+    }
+
+};
+
